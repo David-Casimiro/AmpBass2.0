@@ -1,212 +1,339 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>BassFX Mobile</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>BassFX / Q-16 Live (Safari iOS Optimized)</title>
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#020617">
-
+<!-- Tailwind CDN for quick styling -->
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-html,body{
-  background:#020617;
-  color:#e0f2fe;
-  font-family:system-ui,-apple-system,sans-serif;
-  touch-action:manipulation;
-}
-
-h1{color:#7dd3fc}
-label{color:#bae6fd}
-
-canvas{
-  background:#000;
-  border-radius:12px;
-}
-
-.section{
-  border:1px solid #1e293b;
-  border-radius:18px;
-  padding:1rem;
-}
-
-button:active{transform:scale(.96)}
-iframe{border-radius:12px}
+  body { background: #020617; color: #e6f7ff; font-family: system-ui, -apple-system, sans-serif; }
+  .card { background: linear-gradient(180deg,#041022,#021019); border:1px solid #11323f; border-radius:12px; padding:12px; }
+  button{ transition:all .12s ease }
+  canvas{ background:#000; border-radius:8px; display:block; width:100%; height:120px; }
+  .small { font-size: .8rem; color:#9fd7ff; }
+  .muted { color:#9ca3af }
 </style>
 </head>
+<body class="p-4 max-w-lg mx-auto">
 
-<body class="p-3 max-w-md mx-auto">
-
-<!-- HEADER -->
 <header class="text-center mb-3">
-  <h1 class="text-xl font-bold">🎸 BassFX</h1>
-  <p class="text-[11px] text-sky-200">Baixo + Spotify Player</p>
+  <h1 class="text-2xl font-bold">🎛️ Q-16 Live — Web FX</h1>
+  <p class="small">Otimiz. Safari iOS • Interface Teyun Q-16 • Low-latency pass-through</p>
 </header>
 
-<!-- VISUAL -->
-<section class="section mb-3">
-  <canvas id="scope" class="w-full h-24"></canvas>
+<section class="card mb-3">
+  <div class="flex gap-2 mb-2">
+    <button id="openBtn" class="flex-1 py-2 rounded bg-emerald-600 font-semibold">Conectar & Ativar</button>
+    <button id="refreshDevices" class="py-2 px-3 rounded bg-sky-600">Atualizar</button>
+  </div>
+
+  <label class="small muted">Selecionar Entrada (conecte Q-16 antes)</label>
+  <select id="deviceSelect" class="w-full p-2 rounded bg-black/40 mb-2"></select>
+
+  <div class="grid grid-cols-2 gap-2 mb-2">
+    <button id="powerBtn" class="py-2 rounded bg-green-600">Power ON</button>
+    <button id="muteBtn" class="py-2 rounded bg-yellow-500">MIC ON</button>
+  </div>
+
+  <div class="mb-2">
+    <label class="small">Input Gain</label>
+    <input id="gain" type="range" min="0" max="6" step="0.01" value="1" class="w-full">
+  </div>
+
+  <div>
+    <label class="small">Output (Master)</label>
+    <input id="master" type="range" min="0" max="1.2" step="0.01" value="0.9" class="w-full">
+  </div>
+
+  <p class="muted text-xs mt-2">Dica: conecte a Q-16 com o nível correto (Phones/AUX) e comece com ganho ≈ 1. Use este app como camada de FX; para sinal crítico mantenha saída direta da mesa como redundância.</p>
 </section>
 
-<!-- BOTÕES PRINCIPAIS -->
-<section class="grid grid-cols-2 gap-3 mb-3">
-  <button id="powerBtn"
-    class="py-4 rounded-xl bg-green-700 font-bold text-white">
-    LIGAR
-  </button>
-
-  <button id="micBtn"
-    class="py-4 rounded-xl bg-yellow-500 font-bold text-black">
-    MIC ON
-  </button>
+<section class="card mb-3">
+  <label class="small">Visualizador (oscilloscope)</label>
+  <canvas id="scope"></canvas>
 </section>
 
-<!-- INPUT GAIN -->
-<section class="section mb-3">
-  <label class="block mb-2">INPUT GAIN</label>
-  <input id="gain" type="range" min="0" max="10" step="0.1" value="3" class="w-full">
+<section class="text-xs text-gray-300 small">
+  <p><strong>Requisitos / notas:</strong></p>
+  <ul class="list-disc ml-4 muted">
+    <li>iPhone iOS 14+ recomendado; Safari atual.</li>
+    <li>Use adaptador oficial Lightning ↔ USB (Camera Adapter) ou USB-C direto.</li>
+    <li>HTTPS é obrigatório (GitHub Pages funciona).</li>
+    <li>O navegador pode não expor device labels até permissão concedida.</li>
+  </ul>
 </section>
 
-<!-- MASTER -->
-<section class="section mb-3">
-  <label class="block mb-2">MASTER VOLUME</label>
-  <input id="volume" type="range" min="0" max="1.5" step="0.05" value="0.8" class="w-full">
-</section>
-
-<!-- SPOTIFY PLAYER (CORRIGIDO + MAIS ALTO) -->
-<section class="section mb-3">
-  <label class="block mb-2">SPOTIFY PLAYER</label>
-
-  <iframe
-    src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator"
-    width="100%"
-    height="352"
-    frameborder="0"
-    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-    loading="lazy">
-  </iframe>
-
-  <p class="text-[10px] text-sky-300 mt-2">
-    ▶ Spotify funciona apenas com playlists, álbuns ou músicas específicas
-  </p>
-</section>
-
-<footer class="text-center mt-4 text-[10px] text-sky-300">
-  BassFX • Mobile • PWA Ready
-</footer>
+<footer class="text-center text-xs text-gray-400 mt-3">Q-16 Live • Web Audio • Experimental • Use em camadas</footer>
 
 <script>
-/* ================= AUDIO ENGINE ================= */
+/* ============================
+  Q-16 Optimized Web Audio (Safari iOS)
+  - Uses AudioWorklet for light pass-through processing
+  - device selection + minimal UI
+  - tuned for low-latency use with class-compliant USB interface
+============================ */
 
-let ctx, mic, gainNode, master, analyser, stream;
-let running=false, micOn=true;
+let audioContext = null;
+let micStream = null;
+let micSource = null;
+let workletNode = null;
+let analyser = null;
 
-const powerBtn=document.getElementById("powerBtn");
-const micBtn=document.getElementById("micBtn");
-const scope=document.getElementById("scope");
-const c=scope.getContext("2d");
+const openBtn = document.getElementById('openBtn');
+const refreshBtn = document.getElementById('refreshDevices');
+const deviceSelect = document.getElementById('deviceSelect');
+const powerBtn = document.getElementById('powerBtn');
+const muteBtn = document.getElementById('muteBtn');
+const gainSlider = document.getElementById('gain');
+const masterSlider = document.getElementById('master');
+const canvas = document.getElementById('scope');
+const ctx = canvas.getContext('2d');
 
-const gain=document.getElementById("gain");
-const volume=document.getElementById("volume");
+let running = false;
+let micOn = true;
+let currentDeviceId = null;
 
-/* ----- POWER ----- */
-powerBtn.onclick=async ()=>{
- if(!running){
-  ctx=new AudioContext({
-    latencyHint:"interactive",
-    sampleRate:44100
-  });
+// Small utility: sleep
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  stream=await navigator.mediaDevices.getUserMedia({
-    audio:{
-      echoCancellation:false,
-      noiseSuppression:false,
-      autoGainControl:false,
-      channelCount:1
+/* ---------- AudioWorklet processor code (pass-through + gain) ----------
+   We'll register this as a blob URL so fileless deployment is possible.
+   The processor applies per-sample inputGain * masterGain.
+   Keep it extremely minimal to reduce JS overhead.
+-------------------------------------------------------------------------*/
+const workletCode = `
+class PassThroughProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      { name: 'inputGain', defaultValue: 1, minValue: 0, maxValue: 10 },
+      { name: 'masterGain', defaultValue: 0.9, minValue: 0, maxValue: 2 }
+    ];
+  }
+  constructor() {
+    super();
+  }
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    const output = outputs[0];
+    if (!input || input.length === 0) return true;
+    const inCh = input[0];
+    const outCh = output[0];
+    const ig = parameters.inputGain;
+    const mg = parameters.masterGain;
+    const frames = inCh.length;
+    for (let i = 0; i < frames; i++) {
+      const g = ig.length > 1 ? ig[i] : ig[0];
+      const m = mg.length > 1 ? mg[i] : mg[0];
+      outCh[i] = inCh[i] * g * m;
     }
-  });
+    return true;
+  }
+}
+registerProcessor('pass-through-processor', PassThroughProcessor);
+`;
 
-  mic=ctx.createMediaStreamSource(stream);
+/* Create blob URL for the worklet script */
+const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
+const workletUrl = URL.createObjectURL(workletBlob);
 
-  gainNode=ctx.createGain();
-  gainNode.gain.value=gain.value;
-
-  master=ctx.createGain();
-  master.gain.value=volume.value;
-
-  analyser=ctx.createAnalyser();
-  analyser.fftSize=1024;
-
-  mic.connect(gainNode)
-     .connect(master)
-     .connect(analyser)
-     .connect(ctx.destination);
-
-  running=true;
-  powerBtn.textContent="DESLIGAR";
-  powerBtn.classList.replace("bg-green-700","bg-red-700");
-  draw();
-
- } else {
-  ctx.close();
-  stream.getTracks().forEach(t=>t.stop());
-  running=false;
-  powerBtn.textContent="LIGAR";
-  powerBtn.classList.replace("bg-red-700","bg-green-700");
- }
-};
-
-/* ----- MIC ON/OFF ----- */
-micBtn.onclick=()=>{
- micOn=!micOn;
- if(gainNode) gainNode.gain.value=micOn?gain.value:0;
- micBtn.textContent=micOn?"MIC ON":"MIC OFF";
- micBtn.classList.toggle("bg-gray-600",!micOn);
-};
-
-/* ----- SLIDERS ----- */
-gain.oninput=e=>gainNode&&(gainNode.gain.value=e.target.value);
-volume.oninput=e=>master&&(master.gain.value=e.target.value);
-
-/* ----- OSCILOSCÓPIO ----- */
-function draw(){
- if(!running) return;
- requestAnimationFrame(draw);
-
- scope.width=scope.offsetWidth;
- scope.height=scope.offsetHeight;
-
- const data=new Uint8Array(analyser.fftSize);
- analyser.getByteTimeDomainData(data);
-
- c.fillStyle="#000";
- c.fillRect(0,0,scope.width,scope.height);
-
- c.strokeStyle="#38bdf8";
- c.lineWidth=2;
- c.beginPath();
-
- for(let i=0;i<data.length;i+=2){
-  const x=i*scope.width/data.length;
-  const y=(data[i]/255)*scope.height;
-  i?c.lineTo(x,y):c.moveTo(x,y);
- }
- c.stroke();
+/* ---------- device enumeration ----------
+   iOS Safari may not expose labels until permission is granted.
+   We'll attempt to enumerate and populate the select.
+-------------------------------------------*/
+async function enumerateAudioInputs() {
+  deviceSelect.innerHTML = '<option>Procurando...</option>';
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const inputs = devices.filter(d => d.kind === 'audioinput');
+    deviceSelect.innerHTML = '';
+    if (inputs.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Nenhuma entrada detectada';
+      deviceSelect.appendChild(opt);
+      return;
+    }
+    inputs.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      // label may be empty until permission, fall back to deviceId short label
+      opt.textContent = d.label || ('device: ' + d.deviceId.substring(0,6));
+      deviceSelect.appendChild(opt);
+    });
+  } catch (err) {
+    console.warn('enumerateDevices error', err);
+    deviceSelect.innerHTML = '<option value="">Erro ao listar dispositivos</option>';
+  }
 }
 
-/* ----- PWA SIMPLE ----- */
-if('serviceWorker' in navigator){
- navigator.serviceWorker.register(
-  URL.createObjectURL(
-   new Blob(
-    [`self.addEventListener("fetch",e=>e.respondWith(fetch(e.request)))`],
-    {type:"application/javascript"}
-   )
-  )
- );
+/* ---------- open / connect ---------- */
+openBtn.onclick = async () => {
+  // Make sure device is connected and user gesture
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        latencyHint: 'interactive',
+        sampleRate: 48000
+      });
+    }
+    // Ensure worklet support
+    if (!audioContext.audioWorklet) {
+      alert('AudioWorklet não suportado neste navegador. Tente Chrome ou Safari mais recente.');
+      return;
+    }
+    // register worklet
+    try {
+      await audioContext.audioWorklet.addModule(workletUrl);
+    } catch (err) {
+      console.error('Worklet register error', err);
+      alert('Falha ao registrar Worklet: ' + err.message);
+      return;
+    }
+
+    // Request permission & stream — prefer specific device if selected
+    currentDeviceId = deviceSelect.value || undefined;
+
+    // prepare constraints: prefer the selected deviceId
+    const constraints = {
+      audio: {
+        deviceId: currentDeviceId ? { exact: currentDeviceId } : undefined,
+        sampleRate: 48000,
+        channelCount: 1,
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        latency: 0
+      }
+    };
+
+    micStream = await navigator.mediaDevices.getUserMedia(constraints);
+    micSource = audioContext.createMediaStreamSource(micStream);
+
+    // create worklet node
+    workletNode = new AudioWorkletNode(audioContext, 'pass-through-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      parameterData: { inputGain: Number(gainSlider.value), masterGain: Number(masterSlider.value) }
+    });
+
+    // analyser for visual
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+
+    // connect chain: source -> worklet -> analyser -> destination
+    micSource.connect(workletNode).connect(analyser).connect(audioContext.destination);
+
+    running = true;
+    powerBtn.textContent = 'Power ON ✓';
+    powerBtn.classList.replace('bg-green-600','bg-green-800');
+    openBtn.textContent = 'Conectado';
+    openBtn.disabled = true;
+
+    // update device list again (now labels available)
+    await wait(200);
+    await enumerateAudioInputs();
+
+    drawLoop();
+  } catch (err) {
+    console.error('Erro conectar:', err);
+    alert('Erro ao conectar: ' + (err.message || err));
+  }
+};
+
+/* ---------- refresh devices ---------- */
+refreshBtn.onclick = async () => {
+  await enumerateAudioInputs();
+};
+
+// powerBtn toggles context suspend/resume (light control)
+powerBtn.onclick = async () => {
+  if (!audioContext) return alert('Conecte primeiro (Conectar & Ativar).');
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+    powerBtn.textContent = 'Power ON ✓';
+  } else {
+    await audioContext.suspend();
+    powerBtn.textContent = 'Power SUSP';
+  }
+};
+
+// mute toggle: adjust parameter on worklet (no disconnect)
+muteBtn.onclick = () => {
+  if (!workletNode) return;
+  micOn = !micOn;
+  // set inputGain to 0 if muted, else to slider value
+  const ig = micOn ? Number(gainSlider.value) : 0;
+  workletNode.parameters.get('inputGain').setValueAtTime(ig, audioContext.currentTime);
+  muteBtn.textContent = micOn ? 'MIC ON' : 'MIC OFF';
+  muteBtn.classList.toggle('bg-gray-600', !micOn);
+};
+
+// gain / master controls update AudioWorklet parameters
+gainSlider.oninput = () => {
+  if (workletNode && micOn) {
+    workletNode.parameters.get('inputGain').setValueAtTime(Number(gainSlider.value), audioContext.currentTime);
+  }
+};
+masterSlider.oninput = () => {
+  if (workletNode) {
+    workletNode.parameters.get('masterGain').setValueAtTime(Number(masterSlider.value), audioContext.currentTime);
+  }
+};
+
+/* ---------- visualizer (simple, low cost) ---------- */
+function drawLoop() {
+  if (!running || !analyser) return;
+  requestAnimationFrame(drawLoop);
+
+  // adjust canvas pixel ratio
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const bufferLen = analyser.fftSize;
+  const data = new Uint8Array(bufferLen);
+  analyser.getByteTimeDomainData(data);
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#7dd3fc';
+  ctx.beginPath();
+
+  const sliceW = w / bufferLen;
+  let x = 0;
+  for (let i = 0; i < bufferLen; i += 4) { // step to reduce draw cost
+    const v = data[i] / 128.0;
+    const y = (v * h) / 2;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+    x += sliceW * 4;
+  }
+  ctx.stroke();
 }
+
+/* ---------- initialization ---------- */
+(async function init() {
+  // attempt to populate devices (labels may be empty until permission)
+  await enumerateAudioInputs();
+})();
+
+/* ---------- cleanup on page hide (helps mobile) ---------- */
+window.addEventListener('pagehide', async () => {
+  try {
+    if (audioContext) await audioContext.close();
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+  } catch (e) {}
+});
+
 </script>
-
 </body>
 </html>
