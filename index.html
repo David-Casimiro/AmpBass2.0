@@ -10,10 +10,10 @@
 <style>
 body{background:#020617;color:#e5e7eb;font-family:system-ui}
 .card{background:#020617;border:1px solid #1e293b;border-radius:14px;padding:12px}
-canvas{background:#000;border-radius:8px;width:100%;height:100px}
 .key{touch-action:none}
-.white{background:#fff;color:#000;width:36px;height:64px;display:inline-flex;align-items:center;justify-content:center;margin-right:4px;border-radius:4px}
-.black{background:#000;color:#fff;width:24px;height:40px;margin-left:-16px;z-index:2;border-radius:3px}
+.white{background:#fff;color:#000;width:38px;height:68px;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-right:5px;border-radius:6px;font-weight:bold}
 input[type=range]{width:100%}
 </style>
 </head>
@@ -22,20 +22,20 @@ input[type=range]{width:100%}
 
 <header class="text-center mb-3">
 <h1 class="text-xl font-bold">🎹 Synth Live FX</h1>
-<p class="text-xs text-gray-400">Q-16 • iPhone • Safari</p>
+<p class="text-xs text-gray-400">Chorus • Phaser • Q-16 • Safari</p>
 </header>
 
 <section class="card mb-3">
-<button id="start" class="w-full py-2 bg-green-600 rounded font-bold">INICIAR</button>
+<button id="start" class="w-full py-2 bg-green-600 rounded font-bold">
+INICIAR
+</button>
 
-<div class="mt-2">
-<label class="text-xs">Master</label>
+<label class="text-xs mt-2">Master</label>
 <input id="master" type="range" min="0" max="1.5" step="0.01" value="0.9">
-</div>
 </section>
 
 <section class="card mb-3">
-<h2 class="text-sm font-bold mb-1">Synth</h2>
+<h2 class="text-sm font-bold mb-2">Synth</h2>
 
 <select id="wave" class="w-full mb-2 bg-black/30 p-2 rounded">
 <option value="sine">Sine</option>
@@ -44,97 +44,178 @@ input[type=range]{width:100%}
 <option value="triangle">Triangle</option>
 </select>
 
-<div class="grid grid-cols-2 gap-2 text-xs">
-<div>Attack <input id="att" type="range" min="0" max="200" value="10"></div>
-<div>Release <input id="rel" type="range" min="10" max="1000" value="200"></div>
-</div>
+<label class="text-xs">Attack</label>
+<input id="att" type="range" min="0" max="200" value="20">
+
+<label class="text-xs mt-1">Release</label>
+<input id="rel" type="range" min="50" max="1200" value="350">
 </section>
 
 <section class="card mb-3">
-<h2 class="text-sm font-bold mb-1">FX – Synth</h2>
+<h2 class="text-sm font-bold mb-2">FX – Synth</h2>
 
 <label class="text-xs">Reverb</label>
-<input id="rev" type="range" min="0" max="1" step="0.01" value="0.3">
+<input id="rev" type="range" min="0" max="1" step="0.01" value="0.25">
 
-<label class="text-xs mt-1">Delay Send</label>
-<input id="dSend" type="range" min="0" max="1" step="0.01" value="0.25">
+<label class="text-xs mt-1">Delay</label>
+<input id="dSend" type="range" min="0" max="1" step="0.01" value="0.2">
 
-<label class="text-xs mt-1">Delay Time (ms)</label>
-<input id="dTime" type="range" min="80" max="600" value="280">
+<label class="text-xs mt-1">Chorus</label>
+<input id="chorusSend" type="range" min="0" max="1" step="0.01" value="0.3">
 
-<label class="text-xs mt-1">Delay Feedback</label>
-<input id="dFb" type="range" min="0" max="0.8" step="0.01" value="0.35">
+<label class="text-xs mt-1">Phaser</label>
+<input id="phaserSend" type="range" min="0" max="1" step="0.01" value="0.25">
 </section>
 
 <section class="card">
-<h2 class="text-sm mb-2 font-bold">Teclado</h2>
+<h2 class="text-sm font-bold mb-2">Teclado</h2>
 <div id="keys" class="flex"></div>
 </section>
 
 <script>
-let ctx, masterGain, synthBus, delay, delayFB, delayGain, reverbGain;
+let ctx, masterGain, synthBus;
+let reverbGain, delayGain;
+let chorusGain, phaserGain;
+let delay, delayFB;
 
-const notes = [
-{n:"C",f:261},{n:"D",f:293},{n:"E",f:329},{n:"F",f:349},
-{n:"G",f:392},{n:"A",f:440},{n:"B",f:493}
-];
-
-const keysDiv=document.getElementById("keys");
-notes.forEach((o,i)=>{
- let k=document.createElement("div");
- k.className="white key";
- k.textContent=o.n;
- k.onpointerdown=()=>noteOn(o.f,i);
- k.onpointerup=()=>noteOff(i);
- keysDiv.appendChild(k);
-});
-
+// ======================= TECLADO =======================
+const notes=[261,293,329,349,392,440,493];
+const keys=document.getElementById("keys");
 let voices={};
 
-document.getElementById("start").onclick=async()=>{
-ctx=new AudioContext({latencyHint:"interactive",sampleRate:48000});
+notes.forEach((f,i)=>{
+ let k=document.createElement("div");
+ k.className="white key";
+ k.textContent=String.fromCharCode(67+i);
+ k.onpointerdown=()=>noteOn(f,i);
+ k.onpointerup=()=>noteOff(i);
+ keys.appendChild(k);
+});
 
-masterGain=ctx.createGain();
-masterGain.gain.value=0.9;
-masterGain.connect(ctx.destination);
+// ======================= START =======================
+document.getElementById("start").onclick=()=>{
+ ctx=new AudioContext({latencyHint:"interactive",sampleRate:48000});
 
-synthBus=ctx.createGain();
-synthBus.connect(masterGain);
+ masterGain=ctx.createGain();
+ masterGain.gain.value=0.9;
+ masterGain.connect(ctx.destination);
 
-// REVERB
-const ir=ctx.createBuffer(2,48000,48000);
-for(let c=0;c<2;c++){
- let d=ir.getChannelData(c);
- for(let i=0;i<d.length;i++){
-  d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
- }
-}
-const convolver=ctx.createConvolver();
-convolver.buffer=ir;
+ synthBus=ctx.createGain();
+ synthBus.connect(masterGain);
 
-reverbGain=ctx.createGain();
-reverbGain.gain.value=0.3;
-convolver.connect(reverbGain).connect(synthBus);
-
-// DELAY
-delay=ctx.createDelay(1);
-delay.delayTime.value=0.28;
-delayFB=ctx.createGain();
-delayFB.gain.value=0.35;
-delayGain=ctx.createGain();
-delayGain.gain.value=0.25;
-
-delay.connect(delayFB).connect(delay);
-delay.connect(delayGain).connect(synthBus);
-
-// Synth dry → fx
-synthBus.connect(convolver);
-synthBus.connect(delay);
-
+ setupReverb();
+ setupDelay();
+ setupChorus();
+ setupPhaser();
 };
 
+// ======================= SYNTH =======================
 function noteOn(freq,id){
  let osc=ctx.createOscillator();
  let g=ctx.createGain();
  osc.type=wave.value;
- osc.frequency.value
+ osc.frequency.value=freq;
+ osc.connect(g).connect(synthBus);
+
+ // sends
+ g.connect(reverbGain);
+ g.connect(delayGain);
+ g.connect(chorusGain);
+ g.connect(phaserGain);
+
+ let now=ctx.currentTime;
+ g.gain.setValueAtTime(0,now);
+ g.gain.linearRampToValueAtTime(1,now+att.value/1000);
+ osc.start();
+ voices[id]={osc,g};
+}
+
+function noteOff(id){
+ let v=voices[id];
+ if(!v) return;
+ let now=ctx.currentTime;
+ v.g.gain.linearRampToValueAtTime(0,now+rel.value/1000);
+ setTimeout(()=>v.osc.stop(),rel.value+50);
+ delete voices[id];
+}
+
+// ======================= REVERB =======================
+function setupReverb(){
+ const convolver=ctx.createConvolver();
+ const ir=ctx.createBuffer(2,48000,48000);
+ for(let c=0;c<2;c++){
+  const d=ir.getChannelData(c);
+  for(let i=0;i<d.length;i++){
+   d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+  }
+ }
+ convolver.buffer=ir;
+ reverbGain=ctx.createGain();
+ reverbGain.gain.value=0.25;
+ reverbGain.connect(convolver).connect(synthBus);
+}
+
+// ======================= DELAY =======================
+function setupDelay(){
+ delay=ctx.createDelay(1);
+ delay.delayTime.value=0.25;
+ delayFB=ctx.createGain();
+ delayFB.gain.value=0.35;
+ delayGain=ctx.createGain();
+ delayGain.gain.value=0.2;
+
+ delay.connect(delayFB).connect(delay);
+ delay.connect(synthBus);
+ delayGain.connect(delay);
+}
+
+// ======================= CHORUS =======================
+function setupChorus(){
+ const chorusDelay=ctx.createDelay(0.05);
+ chorusDelay.delayTime.value=0.015;
+
+ const lfo=ctx.createOscillator();
+ const lfoGain=ctx.createGain();
+ lfo.frequency.value=0.8;      // lento (estável p/ palco)
+ lfoGain.gain.value=0.005;
+
+ lfo.connect(lfoGain).connect(chorusDelay.delayTime);
+ lfo.start();
+
+ chorusGain=ctx.createGain();
+ chorusGain.gain.value=0.3;
+ chorusGain.connect(chorusDelay).connect(synthBus);
+}
+
+// ======================= PHASER =======================
+function setupPhaser(){
+ let input=ctx.createGain();
+ let last=input;
+
+ for(let i=0;i<4;i++){
+  const ap=ctx.createBiquadFilter();
+  ap.type="allpass";
+  ap.frequency.value=700 + i*400;
+  last.connect(ap);
+  last=ap;
+ }
+
+ const lfo=ctx.createOscillator();
+ const lfoGain=ctx.createGain();
+ lfo.frequency.value=0.5;
+ lfoGain.gain.value=600;
+
+ lfo.connect(lfoGain);
+ lfo.start();
+ lfoGain.connect(last.frequency);
+
+ phaserGain=ctx.createGain();
+ phaserGain.gain.value=0.25;
+ phaserGain.connect(input);
+ last.connect(synthBus);
+}
+
+// ======================= CONTROLES =======================
+master.oninput=e=>masterGain&&(masterGain.gain.value=e.target.value);
+rev.oninput=e=>reverbGain&&(reverbGain.gain.value=e.target.value);
+dSend.oninput=
