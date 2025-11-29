@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>SynthFX Mobile – Live</title>
+<title>SynthFX Live Mobile</title>
 
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <meta name="theme-color" content="#020617">
@@ -18,10 +18,14 @@ html,body{
 }
 .section{
  border:1px solid #1e293b;
- border-radius:18px;
+ border-radius:16px;
  padding:1rem;
+ margin-bottom:.75rem;
 }
-label{font-size:.65rem;color:#9ca3af}
+label{
+ font-size:.65rem;
+ color:#9ca3af;
+}
 input[type=range]{width:100%}
 select,button{
  background:#020617;
@@ -35,33 +39,27 @@ button:active{transform:scale(.95)}
 
 <body class="p-3 max-w-md mx-auto">
 
-<header class="text-center mb-3">
- <h1 class="text-xl font-bold">🎹 SynthFX</h1>
- <p class="text-[10px] text-gray-400">Live • Filter Synth • Safari</p>
+<header class="text-center mb-2">
+ <h1 class="text-xl font-bold">🎹 SynthFX Live</h1>
+ <p class="text-[10px] text-gray-400">USB Audio • Safari • Low Latency</p>
 </header>
 
-<section class="section mb-3">
- <label>PRESET</label>
- <select id="presetSelect" class="w-full"></select>
- <div class="grid grid-cols-2 gap-2 mt-2">
-  <button id="savePreset" class="bg-green-700 text-xs">SALVAR</button>
-  <button id="deletePreset" class="bg-red-700 text-xs">APAGAR</button>
- </div>
-</section>
-
-<section class="grid grid-cols-2 gap-3 mb-3">
+<!-- POWER -->
+<section class="grid grid-cols-2 gap-3 mb-2">
  <button id="powerBtn" class="py-4 bg-green-700 font-bold">LIGAR</button>
  <button id="inputBtn" class="py-4 bg-yellow-500 font-bold text-black">INPUT ON</button>
 </section>
 
-<section class="section mb-3">
+<!-- INPUT -->
+<section class="section">
  <label>INPUT GAIN</label>
  <input id="gain" type="range" min="0" max="10" step="0.1" value="3">
 </section>
 
-<section class="section mb-3">
- <label>FILTRO TIPO</label>
- <select id="filterType" class="w-full mb-2">
+<!-- FILTER -->
+<section class="section">
+ <label>FILTER TYPE</label>
+ <select id="filterType" class="w-full mb-1">
   <option value="lowpass">Low-Pass</option>
   <option value="highpass">High-Pass</option>
  </select>
@@ -69,76 +67,101 @@ button:active{transform:scale(.95)}
  <label>CUTOFF</label>
  <input id="cutoff" type="range" min="100" max="12000" step="10" value="4000">
 
- <label class="mt-2 block">RESONANCE</label>
+ <label class="mt-1 block">RESONANCE</label>
  <input id="resonance" type="range" min="0.5" max="15" step="0.1" value="1">
 </section>
 
-<section class="section mb-3">
- <label>DELAY MIX</label>
- <input id="delayMix" type="range" min="0" max="1" step="0.01" value="0.2">
+<!-- TREMOLO -->
+<section class="section">
+ <label>TREMOLO MIX</label>
+ <input id="tremoloMix" type="range" min="0" max="1" step="0.01" value="0.2">
+
+ <label class="mt-1 block">TREMOLO RATE</label>
+ <input id="tremoloRate" type="range" min="0.5" max="12" step="0.1" value="5">
 </section>
 
-<section class="section mb-3">
- <label>REVERB MIX</label>
+<!-- PHASER -->
+<section class="section">
+ <label>PHASER MIX</label>
+ <input id="phaserMix" type="range" min="0" max="1" step="0.01" value="0.15">
+</section>
+
+<!-- DELAY / REVERB -->
+<section class="section">
+ <label>DELAY MIX</label>
+ <input id="delayMix" type="range" min="0" max="1" step="0.01" value="0.25">
+
+ <label class="mt-1 block">REVERB MIX</label>
  <input id="reverbMix" type="range" min="0" max="1" step="0.01" value="0.3">
 </section>
 
+<!-- MASTER -->
 <section class="section">
- <label>MASTER</label>
+ <label>MASTER VOLUME</label>
  <input id="volume" type="range" min="0" max="1.5" step="0.05" value="1">
 </section>
 
-<footer class="text-center text-[9px] mt-4 text-gray-500">
- SynthFX • Filter Engine • Live Safe
+<!-- PRESETS (AGORA EMBAIXO DO MASTER ✅) -->
+<section class="section">
+ <label>PRESETS</label>
+ <select id="presetSelect" class="w-full mb-2"></select>
+
+ <div class="grid grid-cols-2 gap-2">
+  <button id="savePreset" class="bg-green-700 text-xs">SALVAR</button>
+  <button id="deletePreset" class="bg-red-700 text-xs">APAGAR</button>
+ </div>
+</section>
+
+<footer class="text-center text-[9px] text-gray-500 mt-3">
+ SynthFX Live • Mobile Ready
 </footer>
 
 <script>
 const el=id=>document.getElementById(id);
 
 let ctx, stream, input;
-let gainNode, filter, delayNode, delayFB, delayMix;
-let reverb, master;
+let gainNode, filter, master;
+let tremoloGain, tremoloLFO, tremoloDepth;
+let phaserDelay, phaserLFO, phaserDepth;
+let delayNode, delayFB, delayMix;
+let reverb, reverbMix;
 let running=false;
 
 /* ===== FACTORY PRESETS ===== */
 const FACTORY={
- Clean:{g:3,f:"lowpass",c:12000,q:.7,d:0,r:.1,v:1},
- Pad:{g:4,f:"lowpass",c:3500,q:1.2,d:.2,r:.4,v:1},
- Warm:{g:4,f:"lowpass",c:1800,q:2,d:.3,r:.5,v:1},
- Thin:{g:3,f:"highpass",c:600,q:.8,d:.1,r:.2,v:1}
+ Clean:{g:3,f:"lowpass",c:12000,q:.7,tm:0,pr:0,d:0,r:.1,v:1},
+ Pad:{g:4,f:"lowpass",c:3500,q:1.2,tm:.2,tr:2,pr:.15,d:.25,r:.4,v:1},
+ Warm:{g:4,f:"lowpass",c:1800,q:2,tm:.3,tr:3,pr:.2,d:.3,r:.5,v:1}
 };
 
-/* ===== PRESETS STORAGE ===== */
-function presetsAll(){
- return {...FACTORY,...JSON.parse(localStorage.getItem("synthfx")||"{}")};
-}
+/* ===== STORAGE ===== */
+const STORE=()=>({...FACTORY,...JSON.parse(localStorage.getItem("synthfx")||"{}")});
 
 function loadPresets(){
- const s=el("presetSelect");
- s.innerHTML="";
- Object.keys(presetsAll()).forEach(p=>s.add(new Option(p,p)));
- applyPreset(presetsAll()[s.options[0].value]);
+ const s=el("presetSelect"); s.innerHTML="";
+ Object.keys(STORE()).forEach(p=>s.add(new Option(p,p)));
+ applyPreset(STORE()[s.value||s.options[0].value]);
 }
 
 function savePreset(){
  const name=prompt("Nome do preset");
- if(!name)return;
- const saved=JSON.parse(localStorage.getItem("synthfx")||"{}");
- saved[name]=state();
- localStorage.setItem("synthfx",JSON.stringify(saved));
+ if(!name) return;
+ const s=JSON.parse(localStorage.getItem("synthfx")||"{}");
+ s[name]=state();
+ localStorage.setItem("synthfx",JSON.stringify(s));
  loadPresets();
 }
 
 function deletePreset(){
  const name=el("presetSelect").value;
- if(FACTORY[name])return alert("Preset de fábrica");
+ if(FACTORY[name]) return alert("Preset de fábrica");
  const s=JSON.parse(localStorage.getItem("synthfx")||"{}");
  delete s[name];
  localStorage.setItem("synthfx",JSON.stringify(s));
  loadPresets();
 }
 
-/* ===== AUDIO ===== */
+/* ===== AUDIO START ===== */
 el("powerBtn").onclick=async()=>{
  if(!running){
   ctx=new AudioContext({latencyHint:"interactive",sampleRate:48000});
@@ -147,19 +170,47 @@ el("powerBtn").onclick=async()=>{
 
   gainNode=ctx.createGain();
   filter=ctx.createBiquadFilter();
-  delayNode=ctx.createDelay(1);
-  delayFB=ctx.createGain();
-  delayMix=ctx.createGain();
-  reverb=ctx.createConvolver();
   master=ctx.createGain();
 
-  delayNode.connect(delayFB).connect(delayNode);
-  delayNode.connect(delayMix);
+  /* Tremolo */
+  tremoloGain=ctx.createGain();
+  tremoloDepth=ctx.createGain();
+  tremoloLFO=ctx.createOscillator();
+  tremoloLFO.frequency.value=5;
+  tremoloDepth.gain.value=0;
+  tremoloLFO.connect(tremoloDepth).connect(tremoloGain.gain);
+  tremoloLFO.start();
 
-  input.connect(gainNode).connect(filter).connect(delayNode);
-  filter.connect(reverb);
-  delayMix.connect(reverb);
-  reverb.connect(master).connect(ctx.destination);
+  /* Phaser */
+  phaserDelay=ctx.createDelay(.01);
+  phaserDepth=ctx.createGain();
+  phaserLFO=ctx.createOscillator();
+  phaserDepth.gain.value=.002;
+  phaserLFO.frequency.value=.4;
+  phaserLFO.connect(phaserDepth).connect(phaserDelay.delayTime);
+  phaserLFO.start();
+
+  /* Delay */
+  delayNode=ctx.createDelay(.5);
+  delayFB=ctx.createGain();
+  delayFB.gain.value=.3;
+  delayNode.connect(delayFB).connect(delayNode);
+  delayMix=ctx.createGain();
+
+  /* Reverb */
+  reverb=ctx.createConvolver();
+  reverbMix=ctx.createGain();
+
+  input
+   .connect(gainNode)
+   .connect(filter)
+   .connect(tremoloGain)
+   .connect(phaserDelay)
+   .connect(delayNode)
+   .connect(delayMix)
+   .connect(reverbMix)
+   .connect(master)
+   .connect(ctx.destination);
 
   running=true;
   el("powerBtn").textContent="DESLIGAR";
@@ -171,26 +222,38 @@ el("powerBtn").onclick=async()=>{
  }
 };
 
-/* ===== CONTROLES ===== */
-["gain","cutoff","resonance","delayMix","reverbMix","volume"].forEach(id=>{
- el(id).oninput=()=>{
-  if(!filter)return;
-  gainNode.gain.value=el("gain").value;
-  filter.type=el("filterType").value;
-  filter.frequency.value=el("cutoff").value;
-  filter.Q.value=el("resonance").value;
-  delayMix.gain.value=el("delayMix").value;
-  master.gain.value=el("volume").value;
- };
-});
+/* ===== CONTROLS ===== */
+function update(){
+ if(!filter) return;
+ gainNode.gain.value=el("gain").value;
+ filter.type=el("filterType").value;
+ filter.frequency.value=el("cutoff").value;
+ filter.Q.value=el("resonance").value;
 
-/* ===== PRESET APPLY ===== */
+ tremoloDepth.gain.value=el("tremoloMix").value;
+ tremoloLFO.frequency.value=el("tremoloRate").value;
+
+ phaserDepth.gain.value=el("phaserMix").value*.004;
+
+ delayMix.gain.value=el("delayMix").value;
+ reverbMix.gain.value=el("reverbMix").value;
+
+ master.gain.value=el("volume").value;
+}
+
+["gain","filterType","cutoff","resonance","tremoloMix","tremoloRate","phaserMix","delayMix","reverbMix","volume"]
+.forEach(id=>el(id).oninput=update);
+
+/* ===== PRESETS ===== */
 function state(){
  return {
   g:+el("gain").value,
   f:el("filterType").value,
   c:+el("cutoff").value,
   q:+el("resonance").value,
+  tm:+el("tremoloMix").value,
+  tr:+el("tremoloRate").value,
+  pr:+el("phaserMix").value,
   d:+el("delayMix").value,
   r:+el("reverbMix").value,
   v:+el("volume").value
@@ -202,18 +265,3 @@ function applyPreset(p){
  el("filterType").value=p.f;
  el("cutoff").value=p.c;
  el("resonance").value=p.q;
- el("delayMix").value=p.d;
- el("reverbMix").value=p.r;
- el("volume").value=p.v;
-}
-
-/* ===== EVENTS ===== */
-el("presetSelect").onchange=e=>applyPreset(presetsAll()[e.target.value]);
-el("savePreset").onclick=savePreset;
-el("deletePreset").onclick=deletePreset;
-
-loadPresets();
-</script>
-
-</body>
-</html>
