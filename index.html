@@ -3,35 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-<title>BassFX / Q-16 Live (Safari iOS Optimized)</title>
+<title>Q-16 Live + Simple Synth (Safari iOS)</title>
 
-<!-- Tailwind CDN for quick styling -->
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-  body { background: #020617; color: #e6f7ff; font-family: system-ui, -apple-system, sans-serif; }
-  .card { background: linear-gradient(180deg,#041022,#021019); border:1px solid #11323f; border-radius:12px; padding:12px; }
-  button{ transition:all .12s ease }
-  canvas{ background:#000; border-radius:8px; display:block; width:100%; height:120px; }
-  .small { font-size: .8rem; color:#9fd7ff; }
-  .muted { color:#9ca3af }
+  body { background:#020617; color:#e6f7ff; font-family:system-ui,-apple-system,sans-serif; }
+  .card { background:linear-gradient(180deg,#041022,#021019); border:1px solid #11323f; border-radius:12px; padding:12px; }
+  button{ transition:all .12s ease; }
+  canvas{ background:#000; border-radius:8px; display:block; width:100%; height:110px; }
+  .small{ font-size:.85rem; color:#9fd7ff; }
+  .muted{ color:#9ca3af; font-size:.8rem; }
+  .key{ user-select:none; touch-action:none; }
+  .white{ background:white; color:black; border:1px solid #ccc; height:64px; border-radius:4px; display:inline-block; width:36px; margin-right:3px; text-align:center; line-height:64px;}
+  .black{ background:black; color:white; position:relative; left:-14px; width:24px; height:40px; display:inline-block; margin-right:3px; z-index:2; border-radius:3px; text-align:center; line-height:40px; }
+  .kbd-row{ display:flex; gap:6px; align-items:flex-end; }
+  .controls-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  input[type=range]{ width:100%; touch-action:none; }
 </style>
 </head>
 <body class="p-4 max-w-lg mx-auto">
 
 <header class="text-center mb-3">
-  <h1 class="text-2xl font-bold">🎛️ Q-16 Live — Web FX</h1>
-  <p class="small">Otimiz. Safari iOS • Interface Teyun Q-16 • Low-latency pass-through</p>
+  <h1 class="text-2xl font-bold">🎛️ Q-16 Live + Simple Synth</h1>
+  <p class="small">Optimized Safari iOS • Q-16 • Worklet + Synth</p>
 </header>
 
 <section class="card mb-3">
   <div class="flex gap-2 mb-2">
-    <button id="openBtn" class="flex-1 py-2 rounded bg-emerald-600 font-semibold">Conectar & Ativar</button>
-    <button id="refreshDevices" class="py-2 px-3 rounded bg-sky-600">Atualizar</button>
+    <button id="connectBtn" class="flex-1 py-2 rounded bg-emerald-600 font-semibold">Conectar & Ativar</button>
+    <button id="enumBtn" class="py-2 px-3 rounded bg-sky-600">Atualizar</button>
   </div>
 
-  <label class="small muted">Selecionar Entrada (conecte Q-16 antes)</label>
-  <select id="deviceSelect" class="w-full p-2 rounded bg-black/40 mb-2"></select>
+  <label class="small muted">Entrada (conecte Q-16 antes)</label>
+  <select id="deviceSel" class="w-full p-2 rounded bg-black/40 mb-2"></select>
 
   <div class="grid grid-cols-2 gap-2 mb-2">
     <button id="powerBtn" class="py-2 rounded bg-green-600">Power ON</button>
@@ -40,299 +45,435 @@
 
   <div class="mb-2">
     <label class="small">Input Gain</label>
-    <input id="gain" type="range" min="0" max="6" step="0.01" value="1" class="w-full">
+    <input id="inputGain" type="range" min="0" max="6" step="0.01" value="1">
+  </div>
+  <div class="mb-2">
+    <label class="small">Master Volume</label>
+    <input id="masterGain" type="range" min="0" max="1.5" step="0.01" value="0.9">
   </div>
 
-  <div>
-    <label class="small">Output (Master)</label>
-    <input id="master" type="range" min="0" max="1.2" step="0.01" value="0.9" class="w-full">
+  <div class="mb-2">
+    <label class="small">Mix (Mic ↔ Synth)</label>
+    <input id="mix" type="range" min="0" max="1" step="0.01" value="0.6">
+    <div class="muted text-xs">0 = só synth | 1 = só mic</div>
   </div>
 
-  <p class="muted text-xs mt-2">Dica: conecte a Q-16 com o nível correto (Phones/AUX) e comece com ganho ≈ 1. Use este app como camada de FX; para sinal crítico mantenha saída direta da mesa como redundância.</p>
+  <p class="muted text-xs mt-2">Use este app como camada FX. Mantenha sinal direto da mesa em redundância em shows.</p>
 </section>
 
 <section class="card mb-3">
-  <label class="small">Visualizador (oscilloscope)</label>
+  <label class="small">Visualizador</label>
   <canvas id="scope"></canvas>
 </section>
 
-<section class="text-xs text-gray-300 small">
-  <p><strong>Requisitos / notas:</strong></p>
-  <ul class="list-disc ml-4 muted">
-    <li>iPhone iOS 14+ recomendado; Safari atual.</li>
-    <li>Use adaptador oficial Lightning ↔ USB (Camera Adapter) ou USB-C direto.</li>
-    <li>HTTPS é obrigatório (GitHub Pages funciona).</li>
-    <li>O navegador pode não expor device labels até permissão concedida.</li>
-  </ul>
+<section class="card mb-3">
+  <div class="flex justify-between items-center mb-2">
+    <div><strong>Synth — teclado</strong> <span class="muted"> (clic/touch para tocar)</span></div>
+    <div class="muted text-xs" id="midiStatus">MIDI: tentando...</div>
+  </div>
+
+  <div class="controls-grid mb-2">
+    <div>
+      <label class="small">Waveform</label>
+      <select id="waveform" class="w-full p-2 rounded bg-black/30">
+        <option value="sine">Sine</option>
+        <option value="sawtooth">Saw</option>
+        <option value="square">Square</option>
+        <option value="triangle">Triangle</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="small">Polyphony</label>
+      <input id="poly" type="number" min="1" max="8" value="4" class="w-full p-2 rounded bg-black/30">
+    </div>
+
+    <div>
+      <label class="small">Attack (ms)</label>
+      <input id="att" type="range" min="0" max="200" step="1" value="8">
+    </div>
+
+    <div>
+      <label class="small">Release (ms)</label>
+      <input id="rel" type="range" min="10" max="1000" step="5" value="150">
+    </div>
+
+    <div>
+      <label class="small">Sustain</label>
+      <input id="sus" type="range" min="0" max="1" step="0.01" value="0.8">
+    </div>
+
+    <div>
+      <label class="small">Decay (ms)</label>
+      <input id="dec" type="range" min="0" max="1000" step="5" value="80">
+    </div>
+  </div>
+
+  <!-- on-screen keyboard: one octave (C4 to B4) -->
+  <div id="keyboard" class="kbd-row"></div>
 </section>
 
-<footer class="text-center text-xs text-gray-400 mt-3">Q-16 Live • Web Audio • Experimental • Use em camadas</footer>
+<section class="muted text-xs mb-4">
+  Toque no teclado acima ou conecte um controlador MIDI (se suportado pelo navegador). iOS Safari: Web MIDI geralmente não disponível — use teclado na tela.
+</section>
+
+<footer class="text-center text-xs text-gray-400">Q-16 Live + Synth — Experimental — Teste antes do show</footer>
 
 <script>
 /* ============================
-  Q-16 Optimized Web Audio (Safari iOS)
-  - Uses AudioWorklet for light pass-through processing
-  - device selection + minimal UI
-  - tuned for low-latency use with class-compliant USB interface
+  Combined WebAudio App:
+  - AudioWorklet pass-through for input (mic/interface)
+  - Synth generated in main thread (Oscillators + Gain + ADSR)
+  - Mixer (micGain, synthGain) into masterGain -> destination
+  - Device select, MIDI attempt, minimal visualizer
 ============================ */
 
-let audioContext = null;
-let micStream = null;
-let micSource = null;
-let workletNode = null;
-let analyser = null;
-
-const openBtn = document.getElementById('openBtn');
-const refreshBtn = document.getElementById('refreshDevices');
-const deviceSelect = document.getElementById('deviceSelect');
+const connectBtn = document.getElementById('connectBtn');
+const enumBtn = document.getElementById('enumBtn');
+const deviceSel = document.getElementById('deviceSel');
 const powerBtn = document.getElementById('powerBtn');
 const muteBtn = document.getElementById('muteBtn');
-const gainSlider = document.getElementById('gain');
-const masterSlider = document.getElementById('master');
-const canvas = document.getElementById('scope');
-const ctx = canvas.getContext('2d');
 
+const inputGainEl = document.getElementById('inputGain');
+const masterGainEl = document.getElementById('masterGain');
+const mixEl = document.getElementById('mix');
+
+const waveformSel = document.getElementById('waveform');
+const polyEl = document.getElementById('poly');
+const attEl = document.getElementById('att');
+const decEl = document.getElementById('dec');
+const susEl = document.getElementById('sus');
+const relEl = document.getElementById('rel');
+
+const scope = document.getElementById('scope');
+const ctx = scope.getContext('2d');
+const keyboardDiv = document.getElementById('keyboard');
+const midiStatus = document.getElementById('midiStatus');
+
+let audioCtx = null;
+let micStream = null;
+let micSource = null;
+let inputWorklet = null; // worklet node for pass-through
+let micGainNode = null;
+let synthGainNode = null;
+let masterGainNode = null;
+let analyser = null;
 let running = false;
 let micOn = true;
-let currentDeviceId = null;
 
-// Small utility: sleep
-const wait = ms => new Promise(r => setTimeout(r, ms));
+// Synth voices map: note -> {osc, gain, timeout}
+const voices = new Map();
 
-/* ---------- AudioWorklet processor code (pass-through + gain) ----------
-   We'll register this as a blob URL so fileless deployment is possible.
-   The processor applies per-sample inputGain * masterGain.
-   Keep it extremely minimal to reduce JS overhead.
--------------------------------------------------------------------------*/
-const workletCode = `
-class PassThroughProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() {
-    return [
-      { name: 'inputGain', defaultValue: 1, minValue: 0, maxValue: 10 },
-      { name: 'masterGain', defaultValue: 0.9, minValue: 0, maxValue: 2 }
-    ];
-  }
-  constructor() {
-    super();
-  }
-  process(inputs, outputs, parameters) {
-    const input = inputs[0];
-    const output = outputs[0];
-    if (!input || input.length === 0) return true;
-    const inCh = input[0];
-    const outCh = output[0];
-    const ig = parameters.inputGain;
-    const mg = parameters.masterGain;
-    const frames = inCh.length;
-    for (let i = 0; i < frames; i++) {
-      const g = ig.length > 1 ? ig[i] : ig[0];
-      const m = mg.length > 1 ? mg[i] : mg[0];
-      outCh[i] = inCh[i] * g * m;
+// note frequencies for C4..B4
+const NOTES = [
+  {name:'C4', freq:261.6256},
+  {name:'C#4', freq:277.1826},
+  {name:'D4', freq:293.6648},
+  {name:'D#4', freq:311.1270},
+  {name:'E4', freq:329.6276},
+  {name:'F4', freq:349.2282},
+  {name:'F#4', freq:369.9944},
+  {name:'G4', freq:392.0},
+  {name:'G#4', freq:415.3047},
+  {name:'A4', freq:440.0},
+  {name:'A#4', freq:466.1638},
+  {name:'B4', freq:493.8833}
+];
+
+// Worklet code as blob (pass-through with inputGain parameter)
+const workletSrc = `
+class PT extends AudioWorkletProcessor {
+  static get parameterDescriptors(){ return [{name:'inputGain', defaultValue:1, minValue:0, maxValue:10}]; }
+  process(inputs, outputs, parameters){
+    const inCh = inputs[0];
+    const outCh = outputs[0];
+    if(!inCh || inCh.length===0) return true;
+    const input = inCh[0];
+    const output = outCh[0];
+    const g = parameters.inputGain;
+    for(let i=0;i<input.length;i++){
+      const ig = g.length>1 ? g[i] : g[0];
+      output[i] = input[i]*ig;
     }
     return true;
   }
 }
-registerProcessor('pass-through-processor', PassThroughProcessor);
+registerProcessor('pt-processor', PT);
 `;
+const workletBlob = new Blob([workletSrc], {type:'application/javascript'});
+const workletURL = URL.createObjectURL(workletBlob);
 
-/* Create blob URL for the worklet script */
-const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
-const workletUrl = URL.createObjectURL(workletBlob);
-
-/* ---------- device enumeration ----------
-   iOS Safari may not expose labels until permission is granted.
-   We'll attempt to enumerate and populate the select.
--------------------------------------------*/
-async function enumerateAudioInputs() {
-  deviceSelect.innerHTML = '<option>Procurando...</option>';
-  try {
+/* --------- enumerate devices ---------- */
+async function enumerateDevices(){
+  deviceSel.innerHTML = '<option>Procurando...</option>';
+  try{
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const inputs = devices.filter(d => d.kind === 'audioinput');
-    deviceSelect.innerHTML = '';
-    if (inputs.length === 0) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = 'Nenhuma entrada detectada';
-      deviceSelect.appendChild(opt);
-      return;
+    const inputs = devices.filter(d=>d.kind==='audioinput');
+    deviceSel.innerHTML = '';
+    if(inputs.length===0){
+      const opt = document.createElement('option'); opt.value=''; opt.textContent='Nenhuma entrada detectada';
+      deviceSel.appendChild(opt); return;
     }
-    inputs.forEach(d => {
+    inputs.forEach(d=>{
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      // label may be empty until permission, fall back to deviceId short label
-      opt.textContent = d.label || ('device: ' + d.deviceId.substring(0,6));
-      deviceSelect.appendChild(opt);
+      opt.textContent = d.label || ('device: '+d.deviceId.slice(0,6));
+      deviceSel.appendChild(opt);
     });
-  } catch (err) {
-    console.warn('enumerateDevices error', err);
-    deviceSelect.innerHTML = '<option value="">Erro ao listar dispositivos</option>';
+  }catch(e){
+    deviceSel.innerHTML = '<option value="">Erro</option>';
+    console.warn('enumerateDevices', e);
   }
 }
 
-/* ---------- open / connect ---------- */
-openBtn.onclick = async () => {
-  // Make sure device is connected and user gesture
-  try {
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        latencyHint: 'interactive',
-        sampleRate: 48000
-      });
+/* ----- connect / setup audio graph ----- */
+connectBtn.onclick = async () => {
+  try{
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint:'interactive', sampleRate:48000 });
+      await audioCtx.audioWorklet.addModule(workletURL);
     }
-    // Ensure worklet support
-    if (!audioContext.audioWorklet) {
-      alert('AudioWorklet não suportado neste navegador. Tente Chrome ou Safari mais recente.');
-      return;
-    }
-    // register worklet
-    try {
-      await audioContext.audioWorklet.addModule(workletUrl);
-    } catch (err) {
-      console.error('Worklet register error', err);
-      alert('Falha ao registrar Worklet: ' + err.message);
-      return;
-    }
-
-    // Request permission & stream — prefer specific device if selected
-    currentDeviceId = deviceSelect.value || undefined;
-
-    // prepare constraints: prefer the selected deviceId
+    // choose device if any
+    const deviceId = deviceSel.value || undefined;
     const constraints = {
-      audio: {
-        deviceId: currentDeviceId ? { exact: currentDeviceId } : undefined,
-        sampleRate: 48000,
-        channelCount: 1,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        latency: 0
+      audio:{
+        deviceId: deviceId ? { exact: deviceId } : undefined,
+        sampleRate:48000,
+        channelCount:1,
+        echoCancellation:false,
+        noiseSuppression:false,
+        autoGainControl:false,
+        latency:0
       }
     };
-
     micStream = await navigator.mediaDevices.getUserMedia(constraints);
-    micSource = audioContext.createMediaStreamSource(micStream);
+    micSource = audioCtx.createMediaStreamSource(micStream);
 
-    // create worklet node
-    workletNode = new AudioWorkletNode(audioContext, 'pass-through-processor', {
-      numberOfInputs: 1,
-      numberOfOutputs: 1,
-      outputChannelCount: [1],
-      parameterData: { inputGain: Number(gainSlider.value), masterGain: Number(masterSlider.value) }
-    });
+    inputWorklet = new AudioWorkletNode(audioCtx, 'pt-processor', { parameterData: { inputGain: Number(inputGainEl.value) }});
+    micGainNode = audioCtx.createGain(); // for mix control, though worklet handles input gain
+    micGainNode.gain.value = 1;
 
-    // analyser for visual
-    analyser = audioContext.createAnalyser();
+    synthGainNode = audioCtx.createGain();
+    synthGainNode.gain.value = 1;
+
+    masterGainNode = audioCtx.createGain();
+    masterGainNode.gain.value = Number(masterGainEl.value);
+
+    analyser = audioCtx.createAnalyser();
     analyser.fftSize = 512;
 
-    // connect chain: source -> worklet -> analyser -> destination
-    micSource.connect(workletNode).connect(analyser).connect(audioContext.destination);
+    // mic chain: micSource -> worklet -> micGainNode -> masterMix
+    micSource.connect(inputWorklet).connect(micGainNode);
+
+    // create a merger for mic & synth then to analyser -> destination
+    const merger = audioCtx.createGain(); // acts as mixer summing node
+    micGainNode.connect(merger);
+    synthGainNode.connect(merger);
+
+    merger.connect(analyser).connect(masterGainNode).connect(audioCtx.destination);
 
     running = true;
+    connectBtn.textContent = 'Conectado';
+    connectBtn.disabled = true;
     powerBtn.textContent = 'Power ON ✓';
-    powerBtn.classList.replace('bg-green-600','bg-green-800');
-    openBtn.textContent = 'Conectado';
-    openBtn.disabled = true;
 
-    // update device list again (now labels available)
+    // update device list labels now that permission granted
     await wait(200);
-    await enumerateAudioInputs();
-
-    drawLoop();
-  } catch (err) {
-    console.error('Erro conectar:', err);
-    alert('Erro ao conectar: ' + (err.message || err));
+    enumerateDevices();
+    draw(); // start visual
+    tryInitMIDI();
+  }catch(err){
+    console.error('connect error', err);
+    alert('Erro ao conectar: '+(err.message||err));
   }
 };
 
-/* ---------- refresh devices ---------- */
-refreshBtn.onclick = async () => {
-  await enumerateAudioInputs();
-};
+/* helper wait */
+const wait = ms => new Promise(r=>setTimeout(r,ms));
 
-// powerBtn toggles context suspend/resume (light control)
+enumBtn.onclick = enumerateDevices;
+
 powerBtn.onclick = async () => {
-  if (!audioContext) return alert('Conecte primeiro (Conectar & Ativar).');
-  if (audioContext.state === 'suspended') {
-    await audioContext.resume();
-    powerBtn.textContent = 'Power ON ✓';
-  } else {
-    await audioContext.suspend();
-    powerBtn.textContent = 'Power SUSP';
-  }
+  if(!audioCtx) return alert('Conecte primeiro');
+  if(audioCtx.state === 'suspended'){ await audioCtx.resume(); powerBtn.textContent='Power ON ✓'; }
+  else { await audioCtx.suspend(); powerBtn.textContent='Power SUSP'; }
 };
 
-// mute toggle: adjust parameter on worklet (no disconnect)
 muteBtn.onclick = () => {
-  if (!workletNode) return;
   micOn = !micOn;
-  // set inputGain to 0 if muted, else to slider value
-  const ig = micOn ? Number(gainSlider.value) : 0;
-  workletNode.parameters.get('inputGain').setValueAtTime(ig, audioContext.currentTime);
+  // set mic gain (mix controls will adjust final mix)
+  micGainNode && (micGainNode.gain.value = micOn ? 1 : 0);
   muteBtn.textContent = micOn ? 'MIC ON' : 'MIC OFF';
   muteBtn.classList.toggle('bg-gray-600', !micOn);
 };
 
-// gain / master controls update AudioWorklet parameters
-gainSlider.oninput = () => {
-  if (workletNode && micOn) {
-    workletNode.parameters.get('inputGain').setValueAtTime(Number(gainSlider.value), audioContext.currentTime);
-  }
+inputGainEl.oninput = () => {
+  if(inputWorklet) inputWorklet.parameters.get('inputGain').setValueAtTime(Number(inputGainEl.value), audioCtx.currentTime);
 };
-masterSlider.oninput = () => {
-  if (workletNode) {
-    workletNode.parameters.get('masterGain').setValueAtTime(Number(masterSlider.value), audioContext.currentTime);
+
+masterGainEl.oninput = () => {
+  if(masterGainNode) masterGainNode.gain.value = Number(masterGainEl.value);
+};
+
+mixEl.oninput = () => {
+  // mix: 0 = synth only, 1 = mic only
+  const m = Number(mixEl.value);
+  if(micGainNode && synthGainNode){
+    micGainNode.gain.value = m;
+    synthGainNode.gain.value = 1 - m;
   }
 };
 
-/* ---------- visualizer (simple, low cost) ---------- */
-function drawLoop() {
-  if (!running || !analyser) return;
-  requestAnimationFrame(drawLoop);
+/* -------- Synth implementation (simple polyphonic) -------- */
+function createVoice(freq){
+  if(!audioCtx) return null;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = waveformSel.value || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.value = 0;
+  // connect to synthGainNode
+  osc.connect(gain).connect(synthGainNode);
+  osc.start();
+  return {osc,gain};
+}
 
-  // adjust canvas pixel ratio
+function noteOn(freq, key){
+  // enforce polyphony
+  const poly = Math.max(1, Math.min(8, parseInt(polyEl.value)||4));
+  if(voices.size >= poly){
+    // simple voice stealing: remove first
+    const firstKey = voices.keys().next().value;
+    noteOff(firstKey);
+  }
+  const v = createVoice(freq);
+  if(!v) return;
+  const now = audioCtx.currentTime;
+  const att = Math.max(0.001, Number(attEl.value)/1000);
+  const dec = Number(decEl.value)/1000;
+  const sus = Number(susEl.value);
+  // attack to 1.0, then decay to sustain
+  v.gain.gain.cancelScheduledValues(now);
+  v.gain.gain.setValueAtTime(0.0001, now);
+  v.gain.gain.exponentialRampToValueAtTime(1.0, now + att);
+  v.gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, sus), now + att + dec);
+  voices.set(key, { node: v, started: now });
+}
+
+function noteOff(key){
+  const rec = voices.get(key);
+  if(!rec) return;
+  const { node } = rec;
+  const now = audioCtx.currentTime;
+  const rel = Math.max(0.01, Number(relEl.value)/1000);
+  node.gain.gain.cancelScheduledValues(now);
+  node.gain.gain.setValueAtTime(node.gain.gain.value, now);
+  node.gain.gain.exponentialRampToValueAtTime(0.0001, now + rel);
+  // stop oscillator after release
+  setTimeout(()=> {
+    try{ node.osc.stop(); }catch(e){}
+    try{ node.osc.disconnect(); node.gain.disconnect(); }catch(e){}
+  }, (rel+0.05)*1000);
+  voices.delete(key);
+}
+
+/* -------- Build on-screen keyboard -------- */
+function buildKeyboard(){
+  keyboardDiv.innerHTML = '';
+  NOTES.forEach((n, idx) => {
+    // render white keys and black keys overlayed roughly
+    const isSharp = n.name.includes('#');
+    const btn = document.createElement('div');
+    btn.className = 'key ' + (isSharp ? 'black' : 'white');
+    btn.textContent = n.name.replace('4','');
+    btn.dataset.idx = idx;
+    // pointer events
+    btn.addEventListener('pointerdown', (e)=> {
+      e.preventDefault();
+      const k = 'k'+idx;
+      if(!voices.has(k)) noteOn(n.freq, k);
+    });
+    btn.addEventListener('pointerup', (e)=> {
+      e.preventDefault();
+      const k = 'k'+idx;
+      noteOff(k);
+    });
+    btn.addEventListener('pointerleave', (e)=> {
+      e.preventDefault();
+      const k = 'k'+idx;
+      if(voices.has(k)) noteOff(k);
+    });
+    keyboardDiv.appendChild(btn);
+  });
+}
+
+/* -------- Visualizer ---------- */
+function draw(){
+  if(!analyser) return;
+  requestAnimationFrame(draw);
+  const w = scope.clientWidth, h = scope.clientHeight;
   const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  canvas.width = Math.round(w * dpr);
-  canvas.height = Math.round(h * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  scope.width = Math.round(w * dpr);
+  scope.height = Math.round(h * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 
-  const bufferLen = analyser.fftSize;
-  const data = new Uint8Array(bufferLen);
-  analyser.getByteTimeDomainData(data);
+  const buffer = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(buffer);
 
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, w, h);
-
+  ctx.fillRect(0,0,w,h);
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#7dd3fc';
   ctx.beginPath();
-
-  const sliceW = w / bufferLen;
-  let x = 0;
-  for (let i = 0; i < bufferLen; i += 4) { // step to reduce draw cost
-    const v = data[i] / 128.0;
-    const y = (v * h) / 2;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-    x += sliceW * 4;
+  const step = Math.max(1, Math.floor(buffer.length/ (w/2) ));
+  let x=0;
+  const slice = w / (buffer.length/step);
+  for(let i=0;i<buffer.length;i+=step){
+    const v = buffer[i]/128.0;
+    const y = v*h/2;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    x += slice;
   }
   ctx.stroke();
 }
 
-/* ---------- initialization ---------- */
-(async function init() {
-  // attempt to populate devices (labels may be empty until permission)
-  await enumerateAudioInputs();
-})();
+/* -------- Web MIDI (try) -------- */
+async function tryInitMIDI(){
+  if (!('requestMIDIAccess' in navigator)) {
+    midiStatus.textContent = 'MIDI: não suportado';
+    return;
+  }
+  try{
+    const midi = await navigator.requestMIDIAccess();
+    midiStatus.textContent = 'MIDI: conectado';
+    for (const input of midi.inputs.values()) {
+      input.onmidimessage = (msg) => {
+        const [status, data1, data2] = msg.data;
+        const cmd = status >> 4;
+        const channel = status & 0xf;
+        if (cmd === 9) { // note on
+          const note = data1;
+          const vel = data2/127;
+          const idx = note - 60; // map to C4=60
+          if(idx>=0 && idx < NOTES.length){
+            noteOn(NOTES[idx].freq, 'm'+note);
+          }
+        } else if (cmd === 8 || (cmd===9 && data2===0)) { // note off
+          const note = data1;
+          noteOff('m'+note);
+        }
+      };
+    }
+  }catch(e){
+    midiStatus.textContent = 'MIDI: erro';
+    console.warn('MIDI init', e);
+  }
+}
 
-/* ---------- cleanup on page hide (helps mobile) ---------- */
-window.addEventListener('pagehide', async () => {
-  try {
-    if (audioContext) await audioContext.close();
-    if (micStream) micStream.getTracks().forEach(t => t.stop());
-  } catch (e) {}
-});
+/* -------- init UI and keyboard -------- */
+buildKeyboard();
+enumerateDevices();
+midiStatus.textContent = 'MIDI: init... (se disponível)';
 
 </script>
 </body>
